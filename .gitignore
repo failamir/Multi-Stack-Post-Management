@@ -30,3 +30,4 @@ Homestead.json
 auth.json
 /nextjs/.next
 /nextjs/.next
+/laravel/vendor
