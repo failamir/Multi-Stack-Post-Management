@@ -2,111 +2,106 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use App\Models\Post;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class PostController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display a listing of the resource.
+     */
+    public function index()
     {
-        $perPage = $request->input('per_page', 10);
-        $posts = Post::orderBy('created_at', 'desc')->paginate($perPage);
+        $posts = Post::with(['user:id,name'])
+            ->latest()
+            ->paginate(10);
 
         return response()->json($posts);
     }
 
-    public function show($id)
-    {
-        $post = Post::find($id);
-
-        if (!$post) {
-            return response()->json([
-                'message' => 'Post not found'
-            ], 404);
-        }
-
-        return response()->json($post);
-    }
-
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'body' => ['required', 'string'],
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
+        $slug = Str::slug($validated['title']);
+        // Ensure unique slug
+        $baseSlug = $slug;
+        $i = 1;
+        while (Post::where('slug', $slug)->exists()) {
+            $slug = $baseSlug.'-'.($i++);
         }
 
         $post = Post::create([
-            'title' => $request->title,
-            'content' => $request->content,
-            'user_id' => $request->user()->id,
+            'user_id' => Auth::id(),
+            'title' => $validated['title'],
+            'slug' => $slug,
+            'body' => $validated['body'],
         ]);
 
-        return response()->json($post, 201);
+        return response()->json($post->load('user:id,name'), 201);
     }
 
-    public function update(Request $request, $id)
+    /**
+     * Display the specified resource.
+     */
+    public function show(Post $post)
     {
-        $post = Post::find($id);
-
-        if (!$post) {
-            return response()->json([
-                'message' => 'Post not found'
-            ], 404);
-        }
-
-        if ($post->user_id !== $request->user()->id) {
-            return response()->json([
-                'message' => 'Unauthorized'
-            ], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|max:255',
-            'content' => 'required|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        $post->update([
-            'title' => $request->title,
-            'content' => $request->content,
-            'updated_at' => now(),
-        ]);
-
-        return response()->json($post);
+        return response()->json($post->load('user:id,name'));
     }
 
-    public function destroy(Request $request, $id)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, Post $post)
     {
-        $post = Post::find($id);
-
-        if (!$post) {
-            return response()->json([
-                'message' => 'Post not found'
-            ], 404);
+        if ($post->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        if ($post->user_id !== $request->user()->id) {
-            return response()->json([
-                'message' => 'Unauthorized'
-            ], 403);
+        $validated = $request->validate([
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'body' => ['sometimes', 'required', 'string'],
+            'slug' => [
+                'sometimes', 'required', 'string', 'max:255',
+                Rule::unique('posts', 'slug')->ignore($post->id),
+            ],
+        ]);
+
+        if (array_key_exists('title', $validated) && !array_key_exists('slug', $validated)) {
+            $candidate = Str::slug($validated['title']);
+            if ($candidate !== $post->slug && Post::where('slug', $candidate)->where('id', '!=', $post->id)->exists()) {
+                $baseSlug = $candidate;
+                $i = 1;
+                while (Post::where('slug', $candidate)->where('id', '!=', $post->id)->exists()) {
+                    $candidate = $baseSlug.'-'.($i++);
+                }
+            }
+            $validated['slug'] = $candidate;
         }
 
+        $post->update($validated);
+
+        return response()->json($post->fresh()->load('user:id,name'));
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Post $post)
+    {
+        if ($post->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
         $post->delete();
-
-        return response()->json([
-            'message' => 'Post deleted successfully'
-        ]);
+        return response()->json(['message' => 'Deleted']);
     }
 }
