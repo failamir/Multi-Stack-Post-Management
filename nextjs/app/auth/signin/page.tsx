@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -18,13 +18,12 @@ export default function SignInPage() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(email, password);
-
-    if (error) {
+    try {
+      await signIn(email, password);
+      router.push('/posts');
+    } catch (error: any) {
       setError(error.message);
       setLoading(false);
-    } else {
-      router.push('/posts');
     }
   };
 

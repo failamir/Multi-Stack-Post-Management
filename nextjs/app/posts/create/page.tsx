@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/lib/api';
 import Link from 'next/link';
 
 export default function CreatePostPage() {
@@ -21,17 +21,12 @@ export default function CreatePostPage() {
     setLoading(true);
     setError('');
 
-    const { error: insertError } = await supabase.from('posts').insert({
-      title,
-      content,
-      user_id: user.id,
-    });
-
-    if (insertError) {
-      setError(insertError.message);
-      setLoading(false);
-    } else {
+    try {
+      await apiClient.createPost(title, content);
       router.push('/posts');
+    } catch (error: any) {
+      setError(error.message);
+      setLoading(false);
     }
   };
 

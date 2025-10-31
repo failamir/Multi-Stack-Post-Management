@@ -12,11 +12,30 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // \App\Models\User::factory(10)->create();
+        // Create a test user
+        $user = \App\Models\User::create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+            'password' => bcrypt('password123'),
+        ]);
 
-        // \App\Models\User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
+        // Create some sample posts
+        \App\Models\Post::create([
+            'user_id' => $user->id,
+            'title' => 'Welcome to Laravel API',
+            'content' => 'This is a sample post ',
+        ]);
+
+        \App\Models\Post::create([
+            'user_id' => $user->id,
+            'title' => 'Another Sample Post',
+            'content' => 'This is another sample post ',
+        ]);
+
+        \App\Models\Post::create([
+            'user_id' => $user->id,
+            'title' => 'Testing the Integration',
+            'content' => 'This post demonstrates',
+        ]);
     }
 }

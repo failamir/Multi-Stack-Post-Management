@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
-import { supabase, Post } from '@/lib/supabase';
+import { apiClient, Post } from '@/lib/api';
 import Link from 'next/link';
 
 export default function PostsPage() {
@@ -29,27 +29,14 @@ export default function PostsPage() {
 
   const fetchPosts = async () => {
     setLoading(true);
-    const from = (currentPage - 1) * postsPerPage;
-    const to = from + postsPerPage - 1;
-
-    const { count } = await supabase
-      .from('posts')
-      .select('*', { count: 'exact', head: true });
-
-    if (count) {
-      setTotalPages(Math.ceil(count / postsPerPage));
-    }
-
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (error) {
-      console.error('Error fetching posts:', error);
-    } else {
+    try {
+      const data = await apiClient.getPosts();
       setPosts(data || []);
+      // For now, we'll disable pagination since Laravel API returns all posts
+      // In a real app, you'd implement pagination in the Laravel API
+      setTotalPages(1);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
     }
     setLoading(false);
   };
@@ -57,12 +44,11 @@ export default function PostsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
-    const { error } = await supabase.from('posts').delete().eq('id', id);
-
-    if (error) {
-      alert('Error deleting post: ' + error.message);
-    } else {
+    try {
+      await apiClient.deletePost(id);
       fetchPosts();
+    } catch (error: any) {
+      alert('Error deleting post: ' + error.message);
     }
   };
 

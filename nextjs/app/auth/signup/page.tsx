@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 export default function SignUpPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -19,15 +21,14 @@ export default function SignUpPage() {
     setError('');
     setLoading(true);
 
-    const { error } = await signUp(email, password);
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
+    try {
+      await signUp(name, email, password, passwordConfirmation);
       setSuccess(true);
       setLoading(false);
-      setTimeout(() => router.push('/auth/signin'), 2000);
+      setTimeout(() => router.push('/posts'), 2000);
+    } catch (error: any) {
+      setError(error.message);
+      setLoading(false);
     }
   };
 
@@ -52,6 +53,20 @@ export default function SignUpPage() {
           <form onSubmit={handleSubmit}>
             <div className="form-control mb-4">
               <label className="label">
+                <span className="label-text">Name</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your full name"
+                className="input input-bordered"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-control mb-4">
+              <label className="label">
                 <span className="label-text">Email</span>
               </label>
               <input
@@ -64,7 +79,7 @@ export default function SignUpPage() {
               />
             </div>
 
-            <div className="form-control mb-6">
+            <div className="form-control mb-4">
               <label className="label">
                 <span className="label-text">Password</span>
               </label>
@@ -75,11 +90,26 @@ export default function SignUpPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
               />
               <label className="label">
-                <span className="label-text-alt">Minimum 6 characters</span>
+                <span className="label-text-alt">Minimum 8 characters</span>
               </label>
+            </div>
+
+            <div className="form-control mb-6">
+              <label className="label">
+                <span className="label-text">Confirm Password</span>
+              </label>
+              <input
+                type="password"
+                placeholder="Confirm your password"
+                className="input input-bordered"
+                value={passwordConfirmation}
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                required
+                minLength={8}
+              />
             </div>
 
             <div className="form-control">

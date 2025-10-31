@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
-import { supabase, Post } from '@/lib/supabase';
+import { apiClient, Post } from '@/lib/api';
 import Link from 'next/link';
 
 export default function ViewPostPage({ params }: { params: { id: string } }) {
@@ -17,16 +17,11 @@ export default function ViewPostPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   const fetchPost = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('id', params.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching post:', error);
-    } else if (data) {
+    try {
+      const data = await apiClient.getPost(params.id);
       setPost(data);
+    } catch (error) {
+      console.error('Error fetching post:', error);
     }
     setLoading(false);
   };
@@ -34,12 +29,11 @@ export default function ViewPostPage({ params }: { params: { id: string } }) {
   const handleDelete = async () => {
     if (!confirm('Are you sure you want to delete this post?')) return;
 
-    const { error } = await supabase.from('posts').delete().eq('id', params.id);
-
-    if (error) {
-      alert('Error deleting post: ' + error.message);
-    } else {
+    try {
+      await apiClient.deletePost(params.id);
       router.push('/posts');
+    } catch (error: any) {
+      alert('Error deleting post: ' + error.message);
     }
   };
 

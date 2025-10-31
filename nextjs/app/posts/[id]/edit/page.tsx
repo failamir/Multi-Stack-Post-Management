@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
+import { useAuth } from '@/lib/laravel-auth-context';
 import { useRouter } from 'next/navigation';
-import { supabase, Post } from '@/lib/supabase';
+import { apiClient, Post } from '@/lib/api';
 import Link from 'next/link';
 
 export default function EditPostPage({ params }: { params: { id: string } }) {
@@ -21,19 +21,14 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   const fetchPost = async () => {
-    const { data, error } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('id', params.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching post:', error);
-      setLoading(false);
-    } else if (data) {
+    try {
+      const data = await apiClient.getPost(params.id);
       setPost(data);
       setTitle(data.title);
       setContent(data.content);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching post:', error);
       setLoading(false);
     }
   };
@@ -45,20 +40,12 @@ export default function EditPostPage({ params }: { params: { id: string } }) {
     setSaving(true);
     setError('');
 
-    const { error: updateError } = await supabase
-      .from('posts')
-      .update({
-        title,
-        content,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', params.id);
-
-    if (updateError) {
-      setError(updateError.message);
-      setSaving(false);
-    } else {
+    try {
+      await apiClient.updatePost(params.id, title, content);
       router.push(`/posts/${params.id}`);
+    } catch (error: any) {
+      setError(error.message);
+      setSaving(false);
     }
   };
 
